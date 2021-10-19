@@ -429,6 +429,8 @@ async function loadTemplate(data, isDefaultTemplate) {
       }
     }, 100);
 
+    const keyListener = new KbListener();
+
   });
 };
 

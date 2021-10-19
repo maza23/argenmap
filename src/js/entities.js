@@ -2443,3 +2443,68 @@ class Geometry {
   }
 }
 
+class KbListener {
+  constructor() {
+    this.init = document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        this._searchbar(e);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "L") {
+        e.preventDefault();
+        this._searchLayer();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "L") {
+        e.preventDefault();
+        this._searchLayer();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "ArrowLeft") {
+        e.preventDefault();
+        this._hideMenu();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "ArrowRight") {
+        e.preventDefault();
+        this._showMenu();
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (document.activeElement != document.body) document.activeElement.blur();
+      }
+    });
+    this._searchbar = () => {
+      document.getElementById("search_bar").focus();
+    };
+    this._searchLayer = () => {
+      document.getElementById("q").focus();
+    };
+    this._hideMenu = () => {
+        document.getElementById("sidebar-container").classList.remove('sidebar');
+        document.getElementById("mapa").classList.remove('col-md-offset-2');
+        document.getElementById("mapa").classList.remove('col-xs-12');
+        document.getElementById("mapa").classList.remove('col-sm-12');
+        document.getElementById("mapa").classList.remove('col-md-10');
+        document.getElementById("mapa").classList.add('col-md-12');
+    };
+    this._showMenu = () => {
+        document.getElementById("mapa").classList.remove('col-md-12');
+        document.getElementById("mapa").classList.add('col-md-offset-2');
+        document.getElementById("mapa").classList.add('col-xs-12');
+        document.getElementById("mapa").classList.add('col-sm-12');
+        document.getElementById("mapa").classList.add('col-md-10');
+        document.getElementById("sidebar-container").classList.add('sidebar');
+    };
+  }
+/*   FocusTracker = {
+    startFocusTracking: function() {
+       this.store('hasFocus', false);
+       this.addEvent('focus', function() { this.store('hasFocus', true); });
+       this.addEvent('blur', function() { this.store('hasFocus', false); });
+    },
+
+    hasFocus: function() {
+       return this.retrieve('hasFocus');
+    }
+}
+
+Element.implement(FocusTracker); */
+}
