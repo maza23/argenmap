@@ -5,11 +5,12 @@ let zoomhome = null;
 let fullscreen = null;
 let customgraticule = null;
 let measure = null;
-let abrirarchivo = null;
+let loadLayersButton = null;
 let leafletbottom = null;
 let drawb = null;
 let screenshot = null;
 let divbar = null;
+let icongeop = null;
 class SidebarTools {
   constructor() {
     locate = document.getElementsByClassName(
@@ -27,10 +28,12 @@ class SidebarTools {
     measure = document.getElementsByClassName(
       "leaflet-control-measure leaflet-bar leaflet-control"
     );
-    abrirarchivo = document.getElementById("modalgeojson");
+    loadLayersButton = document.getElementById("loadLayersButton");
+
     leafletbottom = document.getElementsByClassName("leaflet-bottom");
     drawb = document.getElementsByClassName("leaflet-top leaflet-right");
     screenshot = document.getElementById("screenshot");
+    icongeop = document.getElementById("geoprocesos-icon");
     divbar = document.getElementsByClassName("leaflet-bar leaflet-control");
     this.component = `
     <span data-html2canvas-ignore="true" id="sidebar-toolbar-span"class="glyphicon glyphicon-option-vertical" aria-hidden="true">
@@ -63,9 +66,10 @@ class SidebarTools {
         customgraticule[0].hidden = false;
         locate[0].hidden = false;
         measure[0].hidden = false;
-        abrirarchivo.style.display = "";
+        loadLayersButton.style.display = "";
         screenshot.style.display = "";
         divbar[2].hidden = false;
+        icongeop.style.display = ""
       } else {
         this.style.left = "10px";
         areHiddenLeft = true;
@@ -74,9 +78,10 @@ class SidebarTools {
         customgraticule[0].hidden = true;
         locate[0].hidden = true;
         measure[0].hidden = true;
-        abrirarchivo.style.display = "none";
+        loadLayersButton.style.display = "none";
         screenshot.style.display = "none";
         divbar[2].hidden = true;
+        icongeop.style.display = "none"
       }
     });
 
