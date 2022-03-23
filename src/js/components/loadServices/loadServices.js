@@ -44,7 +44,7 @@ class ModalService {
 		let tab_div = document.createElement("div")
 		tab_div.className = "tabs_upload"
 		tab_div.innerHTML = `
-    <span style="font-size:12px;color:#37bbed;margin:0px 10px;text-align:center;width:100%">Carga de capas a través de WMS</span>`
+    <span style="font-size:12px;color:#37bbed;margin:0px 10px;text-align:center;width:100%">Agregar capas a través de WMS</span>`
 
 		let form = document.createElement("form")
 		form.className = "wms-form"
@@ -78,12 +78,8 @@ class ModalService {
 		modalContainer.append(alert);
 		modalContainer.append(selectLayersContainer);
 
-
-
-
-
 		// Show previous layers and services loaded
-		if (selectedServiceLayers.length) {
+		if (Object.keys(servicesLoaded)) {
 			for (let sourceId in servicesLoaded) {
 				let service = servicesLoaded[sourceId];
 				let layers = service.layers;
@@ -99,6 +95,7 @@ class ModalService {
 				header.classList.add("page-header");
 				header.innerHTML = `
               <form class="title-service" submit="saveServiceTitle(${serviceID},event)">
+			  	<div class="hide-section-button" onclick="hideSection(event,'${serviceID}')">▼</div>
                 <h5 id="title-text-${serviceID}">${title}</h5>
                 <input type="text" class="title-input-service" id="title-input-${serviceID}">
               </form>
@@ -127,6 +124,7 @@ class ModalService {
 
 				let checkLabel = document.createElement('label');
 				checkLabel.classList.add("all-layers-checkbox");
+				checkLabel.classList.add(`label-${serviceID}`);
 				checkLabel.innerHTML = `
           <span class="tree-line">─</span><input type="checkbox" value="${serviceID}" onchange="handleAllLayersCheck(event)">&nbsp;Agregar todas <small>(${Object.keys(layers).length} capas)</small>
           `;
@@ -142,7 +140,7 @@ class ModalService {
 					// let selected = selectedServiceLayers.some(e => e == layer.name);
 
 					let checkLabel = document.createElement('label');
-
+					checkLabel.classList.add(`label-${serviceID}`);
 					let span = document.createElement('span');
 					span.classList.add('tree-line');
 					span.innerText = '──';
@@ -184,21 +182,38 @@ class ModalService {
 let modalService = new ModalService();
 
 
-function handleURLInput(e) {
+async function handleURLInput(e) {
 	e.preventDefault();
 	let url = document.getElementsByName('input-url')[0].value;
+	document.getElementsByName('input-url')[0].value = '';
 
 	const serviceLayer = new ServiceLayers();
 
-	serviceLayer.loadWMS(url).then((layers) => {
-		document.getElementById('wrongURL').style.display = 'none';
-		// document.getElementById('buttonEnd').style.display = 'block';
+
+	// check if the service was added 
+	let validHost = serviceLayer.validateUrl(url).host;
+	let exist;
+
+	for (let i in servicesLoaded) {
+		exist = servicesLoaded[i].host === validHost;
+	}
+	// if the service was added show alert and break execution
+	if (exist) {
+		new UserMessage('El servicio ya fué agregado', true, 'warning');
+		return null
+	};
+
+
+	serviceLayer.loadWMS(url).then((layers)=>{
+		if(document.getElementById('wrongURL')) document.getElementById('wrongURL').style.display = 'none';
+		if(document.getElementById('buttonEnd')) document.getElementById('buttonEnd').style.display = 'block';
 		// Add the service and layers to the array with loaded layers
 		servicesLoaded[serviceLayer.getId()] = {
 			title: serviceLayer.title,
 			id: serviceLayer.id,
 			abstract: serviceLayer.abstract,
-			layers: []
+			layers: [],
+			host:serviceLayer.host,
 		}
 		// Create the container and show the data
 		let wmsResultContainer = document.createElement('div');
@@ -208,11 +223,13 @@ function handleURLInput(e) {
 		let header = document.createElement('div');
 		header.classList.add("page-header");
 		header.innerHTML = `
-        <form class="title-service" submit="saveServiceTitle(${serviceID},event)">
-          <h5 id="title-text-${serviceID}">${title}</h5>
-          <input type="text" class="title-input-service" id="title-input-${serviceID}">
-        </form>
-        `;
+		
+		<form class="title-service" submit="saveServiceTitle(${serviceID},event)">
+			<div class="hide-section-button" onclick="hideSection(event,'${serviceID}')">▼</div>
+			<h5 id="title-text-${serviceID}">${title}</h5>
+			<input type="text" class="title-input-service" id="title-input-${serviceID}">
+		</form>
+		`;
 		let editButton = document.createElement('button');
 		editButton.classList.add('fas');
 		editButton.classList.add('fa-pen-square');
@@ -237,9 +254,10 @@ function handleURLInput(e) {
 
 		let checkLabel = document.createElement('label');
 		checkLabel.classList.add("all-layers-checkbox");
+		checkLabel.classList.add(`label-${serviceID}`);
 		checkLabel.innerHTML = `
-    <span class="tree-line">─</span><input type="checkbox" value="${serviceID}" onchange="handleAllLayersCheck(event)">&nbsp;Agregar todas <small>(${layers.length} capas)</small>
-    `;
+	<span class="tree-line">─</span><input type="checkbox" value="${serviceID}" onchange="handleAllLayersCheck(event)">&nbsp;Agregar todas <small>(${layers.length} capas)</small>
+	`;
 		wmsResultContainer.append(checkLabel);
 
 		// Show layers and checkboxes
@@ -248,18 +266,39 @@ function handleURLInput(e) {
 			servicesLoaded[serviceLayer.getId()].layers[layer.name] = layer;
 
 			let checkLabel = document.createElement('label');
+			checkLabel.classList.add(`label-${serviceID}`);
 			checkLabel.innerHTML = `
-      <span class="tree-line">──</span><input type="checkbox" value="${layer.name}" onchange="handleLayerCheck(event)">&nbsp;${capitalize(layer.title)}
-      `;
+		<span class="tree-line">──</span><input type="checkbox" value="${layer.name}" onchange="handleLayerCheck(event)">&nbsp;${capitalize(layer.title)}
+		`;
 			wmsResultContainer.append(checkLabel);
 		})
 		// Add the container to the modal
 		document.getElementById('select-layers-container').prepend(wmsResultContainer);
-
-	}).catch((error) => {
+	}).catch((error)=>{
 		console.error(error);
 		document.getElementById('wrongURL').style.display = 'block';
-	});
+		if(error.message.toLowerCase().includes('cors')){
+			new UserMessage('El servidor no permite el intercambio de recursos de origen cruzado o CORS', true, 'error');
+		}
+	})
+}
+
+function hideSection(e,id) {
+	let labels = document.getElementsByClassName(`label-${id}`);
+	let state;
+
+	if(labels[0].style.display=='none'){
+		state = 'block'
+		e.target.style.transform = "rotate(0deg)"
+	}else {
+		state = 'none'
+		e.target.style.transform = "rotate(-90deg)"
+	}
+	
+	for (let label of labels) {
+		label.style.display = state;
+	}
+	
 }
 
 function editServiceTitle(serviceID, event) {
@@ -286,7 +325,7 @@ function saveServiceTitle(serviceID, event) {
 
 	let text = document.getElementById(`title-text-${serviceID}`);
 	let input = document.getElementById(`title-input-${serviceID}`);
-	let value = input.value;
+	let value = (input.value.length) ? input.value : servicesLoaded[serviceID].title;
 
 	menu_ui.editGroupName(serviceID, text.innerText, value);
 	servicesLoaded[serviceID].title = value;
@@ -310,9 +349,12 @@ function saveServiceTitle(serviceID, event) {
 function handleAllLayersCheck(e) {
 	if (e.target.checked) {
 		for (let layer_name in servicesLoaded[e.target.value].layers) {
-			document.querySelector(`input[value='${layer_name}']`).checked = true
-			selectedServiceLayers.push(layer_name);
-			menu_ui.addLayerToGroup(servicesLoaded[layersIndex[layer_name]].title, layer_name, layersIndex[layer_name], layer_name, servicesLoaded[layersIndex[layer_name]].layers[layer_name])
+			let exist = selectedServiceLayers.some(l=>l==layer_name);
+			if(!exist){
+				document.querySelector(`input[value='${layer_name}']`).checked = true
+				selectedServiceLayers.push(layer_name);
+				menu_ui.addLayerToGroup(servicesLoaded[layersIndex[layer_name]].title, layer_name, layersIndex[layer_name], layer_name, servicesLoaded[layersIndex[layer_name]].layers[layer_name])
+			}
 		}
 	} else {
 		let groupName;

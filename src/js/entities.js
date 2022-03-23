@@ -667,8 +667,8 @@ class LayersInfoWMS extends LayersInfo {
             host = this.host;
         } */
         let host = this.host;
-        if (this.servicio === "wms" && host.includes("/geoserver") && !host.endsWith("/wms")) { 
-            owsHost += "/wms";
+        if (this.service === "wms" && host.includes("/geoserver") && !host.endsWith("/wms")) { 
+            host += "/wms";
          };
         return host;
     }
@@ -2937,9 +2937,13 @@ class Menu_UI{
         $(`#i-${id}`).focus()
     }
 
-      editGroupName(id,oldName,newName){
+    editGroupName(id,oldName,newName){
         let el = document.getElementById(`${oldName.replace(/ /g, "_")}-a`);
-        if(el) el.innerText = newName;
+        if(el) {
+            el.innerText = newName;
+            document.getElementById(`lista-${oldName.replace(/ /g, "_")}`).id = `lista-${newName.replace(/ /g, "_")}`;
+            document.getElementById(oldName.replace(/ /g, "_")+"-panel-body").id = newName.replace(/ /g, "_")+"-panel-body";
+        };
     }
 
     removeLayerFromGroup(groupname, textName, id, fileName,layer){
@@ -2948,12 +2952,17 @@ class Menu_UI{
         }
 
         document.getElementById("srvcLyr-"+id+textName).remove();
+        serviceItems[id].layersInMenu--;
         
         for (let i in serviceItems[id].layers) {
             if (serviceItems[id].layers[i] === textName) {
                 serviceItems[id].layers.splice(i,1);
                 break;
             }
+        }
+
+        if(serviceItems[id].layersInMenu == 0 || serviceItems[id].layersInMenu == undefined){
+            this.removeLayersGroup(groupname);
         }
     }
     
@@ -2966,17 +2975,20 @@ class Menu_UI{
         let newLayer = layer;
         newLayer.active = false;
         newLayer.L_layer = null;
-        let firstLayerAdded = false; // To simulate the click event
+        // let firstLayerAdded = false; // To simulate the click event
         if (serviceItems[id]!=undefined) {
             serviceItems[id].layers[textName] = newLayer;
+            serviceItems[id].layersInMenu++;
         }else {
             serviceItems[id] = {
-                layers:[]
+                layers:[],
+                layersInMenu:0,
             }
             serviceItems[id].layers[textName] = newLayer;
-            firstLayerAdded = true; // Yes! First layer added
+            serviceItems[id].layersInMenu++;
+            // firstLayerAdded = true; // Yes! First layer added
         }
-
+        
 
         let groupnamev = groupname.replace(/ /g, "_")
         let main = document.getElementById("lista-"+groupnamev)
@@ -3056,7 +3068,8 @@ class Menu_UI{
         content.appendChild(layer_container)
 
         // Open the tab
-        if(firstLayerAdded) $(`#${groupnamev}-a`).click();
+
+        if(serviceItems[id].layersInMenu == 1) $(`#${groupnamev}-a`).click();
         
     }
 
@@ -3135,7 +3148,9 @@ class KbListener {
         document.getElementById("sidebar-container").classList.add('sidebar');
     };
   }
-/*   FocusTracker = {
+}
+/*   
+FocusTracker = {
     startFocusTracking: function() {
        this.store('hasFocus', false);
        this.addEvent('focus', function() { this.store('hasFocus', true); });
@@ -3145,7 +3160,97 @@ class KbListener {
     hasFocus: function() {
        return this.retrieve('hasFocus');
     }
+
+Element.implement(FocusTracker); 
+*/
+
+/******************************************
+CAPTURAR FECHA DE IMAGEN SATELITAL
+******************************************/
+class Fechaimagen {
+    constructor(lat,long,zoom) {
+        this.lat = lat;
+        this.long = long;
+        this.zoom = zoom;
+    }
+
+   get area() {
+     return this.getFechaImagen();
+   }
+
+    getFechaImagen() {
+        var date_pic = "";
+          var x = this.long * 20037508.34 / 180;
+          var y = Math.log(Math.tan((90 + parseFloat(this.lat)) * Math.PI / 360)) / (Math.PI / 180);
+          y = y * 20037508.34 / 180;
+          var id = "";
+            
+            if (this.zoom==19) {
+                id=9;
+            }else if(this.zoom==18){
+                id=10;
+            }else if(this.zoom==17){
+                id=11;
+            }
+            else if(this.zoom==16){
+                id=12;
+            }
+            else if(this.zoom==15){
+                id=13;
+            }
+            else if(this.zoom==14){
+                id=14;
+            }else if(this.zoom==13){
+                id=15;
+            }else if(this.zoom==12){
+                id=16;
+            }
+
+            $.get({
+              url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/"+id+"/query?f=json&returnGeometry=true&spatialRel=esriSpatialRelIntersects&geometry=%7B%22xmin%22%3A"+x+"%2C%22ymin%22%3A"+y+"%2C%22xmax%22%3A"+x+"%2C%22ymax%22%3A"+y+"%2C%22spatialReference%22%3A%7B%22wkid%22%3A102100%2C%22latestWkid%22%3A3857%7D%7D&geometryType=esriGeometryEnvelope&inSR=102100&outFields=OBJECTID%2CSRC_DATE%2CSRC_RES%2CSRC_ACC%2CSAMP_RES%2CSRC_DESC%2CMinMapLevel%2CMaxMapLevel%2CNICE_NAME%2CDrawOrder%2CSRC_DATE2%2CNICE_DESC%2CShape_Length%2CShape_Area&outSR=102100",// mandatory
+               async:false ,
+              success: function (data) {
+                 date_pic =new Date(data.features[0].attributes.SRC_DATE2) 
+                } 
+            });
+        return date_pic;
+    }
 }
 
-Element.implement(FocusTracker); */
+
+
+/******************************************
+CAPTURAR DIRECCION Y DATOS DE COORDENADAS
+******************************************/
+class QuehayAqui {
+    constructor(lat,long) {
+        this.lat = lat;
+        this.long = long;
+       
+    }
+
+
+   get area() {
+     return this.getQuehayAqui();
+   }
+
+   getQuehayAqui() {
+    let quehay = "";
+    $.get({
+      url: `https://api.ign.gob.ar/buscador/search?q=${this.lat},${this.long}&limit=5`,
+      async: false, // to make it synchronous
+      success: function (data) {
+        if(!data.length){
+            quehay = 'No hay datos para esta ubicación.'
+            return quehay;
+        }
+        if (data[0].hasOwnProperty("row_to_json")) {
+          quehay = data[0].row_to_json.properties;
+        } else {
+          quehay = data[0].place.name + "," + data[0].place.depto + ". Provincia de " + data[0].place.pcia;
+        }
+      }
+    });
+    return quehay;
+  }
 }
