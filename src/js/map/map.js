@@ -582,8 +582,21 @@ $("body").on("pluginLoad", function(event, plugin){
 								copytoClipboard(`${lat}, ${lng}`);
 							}
 						});
-						
 
+						contextMenu.createOption({
+							isDisabled: false,
+							text: 'Mas información',
+							onclick: (option) => {
+								mapa.closePopup(contextPopup);	
+									
+									 $("#search_bar").val(lat+","+lng).focus();
+
+
+									   
+																              
+							}
+						});
+						
 						contextMenu.createOption({
 							isDisabled: false,
 							text: 'Agregar marcador',
@@ -599,41 +612,27 @@ $("body").on("pluginLoad", function(event, plugin){
 							}
 						});
 
-
-
-						
-							if (capa.includes("World_Imagery")) {
+							if (gestorMenu.getActiveBasemap() === "esri_imagery") {
 								contextMenu.createOption({
 									isDisabled: false,
-									text: 'Fecha de imagen satelital',
+									text: 'Datos de imagen satelital',
 									onclick: (option) => {
-										var imagenDato = "No existen datos a este nivel de zoom!"
-										if (new Fechaimagen(lat,lng,zoom).area!="") {
-											imagenDato = '<div class="context-imagen"><center><b>Imagen capturada</b></center><br>'+new Fechaimagen(lat,lng,zoom).area+'<br><img src="'+imagen+'"></div>';
+										mapa.closePopup(contextPopup);
+										let imagenDato = '<div><span style="cursor: pointer;font-size: 20px;right: 20px;position: absolute;top: 10px;" onclick="$(\'.context-imagen\').slideUp()"><i class="fa fa-window-close" aria-hidden="true"></i></span>No existen datos a este nivel de zoom</div>',
+										imgData = new Fechaimagen(lat,lng,zoom).area;
+										if (imgData!="") {
+											//let mdTable = `Fecha: ${imgData.date}<br>Resolución espacial: ${imgData.resolution} m<br>Exactitud: ${imgData.accuracy} m<br>Sensor: ${imgData.sensor}<br>Proveedor: ${imgData.provider}<br>Producto: ${imgData.product}`;
+											let mdTable = `<table id="md-table" style="width: 300px;text-align:left;" align="left"><tr><td>Fecha</td><td>${imgData.date}</td></tr><tr><td title="Relación de metros por lado de pixel">Resolución espacial</td><td>${imgData.resolution} m</td></tr><tr><td>Exactitud</td><td>${imgData.accuracy} m</td></tr><tr><td title="Misión aérea o constelación satelital">Sensor</td><td>${imgData.sensor}</td></tr><tr><td>Proveedor</td><td>${imgData.provider}</td></tr><tr><td>Producto</td><td>${imgData.product}</td></tr><tr><td>Zoom mínimo</td><td>${imgData.minZoom}</td></tr><tr><td>Zoom máximo</td><td>${imgData.maxZoom}</td></tr></table>`;
+											imagenDato = `<div><a onclick="copytoClipboard(\'Imagen satelital tomada el ${imgData.date}. Una resolución espacial de ${imgData.resolution} m. La Exactitud es de ${imgData.accuracy} m y el sensor es ${imgData.sensor_texto}. El proveedor es ${imgData.provider_texto} y el producto ${imgData.product} \');" href="#" style="position: absolute;top: 18px;left: 22px;"><i class="far fa-copy" aria-hidden="true"></i> Copiar datos</a><span style="cursor: pointer;font-size: 20px;right: 20px;position: absolute;top: 10px;" onclick="$(\'.context-imagen\').slideUp()"><i class="fa fa-window-close" aria-hidden="true"></i></span><!--<center><b>Metadatos del fondo</b></center><br>-->${mdTable}<hr></div>`;
 										}
-										contextMenu.createOption({
-												isDisabled: true,
-												text: imagenDato,
-												onclick: (option) => {
-													mapa.closePopup(contextPopup);
-												}
-										});
+
+										$(".context-imagen").slideDown();
+										$(".context-imagen").html(imagenDato);
+										
 										
 									}
 								});
 							}
-
-						contextMenu.createOption({
-							isDisabled: false,
-							text: '¿Qué hay aquí?',
-							onclick: (option) => {
-								mapa.closePopup(contextPopup);	
-									$(".context-quehay").slideDown();
-									$(".context-quehay").html('<div><span style="cursor: pointer;position: absolute;right: 20px;top: 10px;font-size: 20px;" onclick="$(\'.context-quehay\').slideUp()"><b>X</b></span>'+new QuehayAqui(lat,lng).area+'</div>');
-							}
-						});
-
-
 
 						contextPopup = L.popup({ closeButton: false, className: 'context-popup' })
 						.setLatLng(e.latlng)
@@ -1540,6 +1539,7 @@ $("body").on("pluginLoad", function(event, plugin){
 
 									//Load data in table
 									const table = new Datatable(data, coords);
+									//console.clear()
 									createTabulator(table, activeLayer.name);
 
 									//we can style the figure in case it can receive some information
@@ -1724,13 +1724,16 @@ $("body").on("pluginLoad", function(event, plugin){
 					}
 
 					mapa.downloadLayerGeoJSON = (layer) => {
-						const geoJSON = layer.toGeoJSON();
+						const geoJSON = {
+							type: "FeatureCollection",
+							features: [layer.toGeoJSON()]
+						};
 						const styleOptions = { ...layer.options };
-						geoJSON.properties.styles = { ...styleOptions };
-						geoJSON.properties.type = layer.type;
+						geoJSON.features[0].properties.styles = { ...styleOptions };
+						geoJSON.features[0].properties.type = layer.type;
 						if (layer.type === 'marker') {
-							if (geoJSON.properties.styles.hasOwnProperty('icon')) {
-								delete geoJSON.properties.styles.icon;
+							if (geoJSON.features[0].properties.styles.hasOwnProperty('icon')) {
+								delete geoJSON.features[0].properties.styles.icon;
 							}
 						}
 						const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geoJSON));
@@ -2701,3 +2704,7 @@ function copytoClipboard(coords){
 	document.body.removeChild(aux);
 	new UserMessage('Las coordenadas se copiaron al portapapeles', true, 'information');
 }
+
+
+
+
