@@ -961,3 +961,10 @@ SideBar
   right: 40px;
   transform: rotateZ(180deg);
 }
+
+/*Hide left panel button*/
+@media only screen and (max-width: 992px) {
+  #panelButton {
+      display: none;
+  }
+}

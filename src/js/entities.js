@@ -3113,27 +3113,30 @@ class Shortcuts {
 
     //Left panel button
     const panelButton = document.createElement("button");
+    panelButton.id = "panelButton";
     panelButton.className = "panelToggle glyphicon glyphicon-menu-left";
     document.getElementById("mapa").appendChild(panelButton);
 
     //Shortcuts
     this.init = document.addEventListener("keydown", (e) => {   
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
         this._searchbar(e);
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "l") {
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === "l") {
         e.preventDefault();
         this._searchLayer(e);
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        this._showHidePanel();
-      }
-      if (e.key === "Escape") {
+        }
+        if (window.outerWidth > 1048) {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                this._showHidePanel();
+            }
+        }
+        if (e.key === "Escape") {
         e.preventDefault();
         if (document.activeElement != document.body) document.activeElement.blur();
-      }
+        }
     });
 
     this._searchbar = () => {
