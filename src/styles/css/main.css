@@ -943,3 +943,20 @@ SideBar
   /* zoom: 1; */
 	transform: scale(1);
 	}
+
+.panelToggle {
+  color: white;
+  border-radius: 4px;
+  padding: 16px;
+  position: absolute;
+  left: 312px;
+  top: 500px;
+  z-index: 9999;
+  border: none;
+  background-color: #37bbed;
+}
+
+.panelToggle.off {
+  left: 0px;
+  transform: rotateZ(180deg);
+}
