@@ -3111,6 +3111,12 @@ class Geometry {
 class Shortcuts {
   constructor() {
 
+    //Left panel button
+    const panelButton = document.createElement("button");
+    panelButton.className = "panelToggle glyphicon glyphicon-menu-left";
+    document.getElementById("mapa").appendChild(panelButton);
+
+    //Shortcuts
     this.init = document.addEventListener("keydown", (e) => {   
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
@@ -3144,7 +3150,6 @@ class Shortcuts {
             showMenu();
         }
     }
-
     $("button.panelToggle").click( function() {
         let me = $(this);
         me.toggleClass('off');
