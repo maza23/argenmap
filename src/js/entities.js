@@ -3168,7 +3168,7 @@ class Shortcuts {
 const hideMenu = () => {
     document.getElementById("sidebar-container").classList.remove('sidebar');
     document.getElementById("mapa").classList.remove('col-md-offset-2');
-    document.getElementById("mapa").classList.remove('col-xs-12');
+    //document.getElementById("mapa").classList.remove('col-xs-12');
     document.getElementById("mapa").classList.remove('col-sm-12');
     document.getElementById("mapa").classList.remove('col-md-10');
     document.getElementById("mapa").classList.add('col-md-12');
@@ -3177,7 +3177,7 @@ const hideMenu = () => {
 const showMenu = () => {
     document.getElementById("mapa").classList.remove('col-md-12');
     document.getElementById("mapa").classList.add('col-md-offset-2');
-    document.getElementById("mapa").classList.add('col-xs-12');
+    //document.getElementById("mapa").classList.add('col-xs-12');
     document.getElementById("mapa").classList.add('col-sm-12');
     document.getElementById("mapa").classList.add('col-md-10');
     document.getElementById("sidebar-container").classList.add('sidebar');
