@@ -8,6 +8,8 @@ var mapa = "";
 
 let currentBaseMap = null;
 
+let countour_styles = false;
+
 gestorMenu.addPlugin("leaflet", PLUGINS.leaflet, function() {
 	for (const plugin in PLUGINS) {
 		if (!app.hasOwnProperty('excluded_plugins') || !app.excluded_plugins.find(excluded_plugin => excluded_plugin === plugin)) {
@@ -137,7 +139,9 @@ $("body").on("pluginLoad", function(event, plugin){
 					var zoomHome = L.Control.zoomHome({
 						zoomHomeTitle: 'Inicio',
 						zoomInTitle: 'Acercarse',
-						zoomOutTitle: 'Alejarse'
+						zoomOutTitle: 'Alejarse',
+						homeCoordinates: [app.mapConfig.center.latitude, app.mapConfig.center.longitude],
+						homeZoom: app.mapConfig.zoom.initial
 					});
 					zoomHome.addTo(mapa);
 					gestorMenu.plugins['ZoomHome'].setStatus('visible');
@@ -502,49 +506,35 @@ $("body").on("pluginLoad", function(event, plugin){
 					}).addTo(mapa);
 
 					// Leaflet-Measure plugin https://github.com/ljagis/leaflet-measure
-					var measureControl = new L.Control.Measure({ position: 'topright', primaryLengthUnit: 'meters', secondaryLengthUnit: 'kilometers', primaryAreaUnit: 'sqmeters', secondaryAreaUnit: 'hectares' });
+					var measureControl = new L.Control.Measure({ position: 'topleft', primaryLengthUnit: 'meters', secondaryLengthUnit: 'kilometers', primaryAreaUnit: 'sqmeters', secondaryAreaUnit: 'hectares', collapsed: true });
 					measureControl.addTo(mapa);
+					/* if (!L.Browser.android) {
+						// replaces event listener for Measure icon in favor of click
+						L.DomEvent.off(measureControl._container, 'mouseenter', measureControl._expand, measureControl);
+						L.DomEvent.off(measureControl._container, 'mouseleave', measureControl._collapse, measureControl);
+						L.DomEvent.on(measureControl._container, 'click', measureControl._expand, measureControl);
+						L.DomEvent.on(measureControl._container, 'click', measureControl._collapse, measureControl);
+					} */
 					gestorMenu.plugins['Measure'].setStatus('visible');
 					break;
 				case 'BrowserPrint':
-                    /*
-					// Leaflet-Browser-Print plugin https://github.com/Igor-Vladyka/leaflet.browser.print
-                    mapa.on("browser-pre-print", function(e){
-                        // on print start we already have a print map and we can create new control and add it to the print map to be able to print custom information
-                        //console.log(overlayMaps);
-                        for (var xxx in overlayMaps) {
-                            //overlayMaps[xxx].addTo(mapa);
-                            L.Control.BrowserPrint.Utils.registerLayer(
-                                overlayMaps[xxx],
-                                xxx,
-                                function(layer, utils) {
-                                    // We need to clone options to properly handle multiple renderers.
-                                    return L.tileLayer.wms(layer._url, utils.cloneOptions(layer.options));
-                                }
-                            );
-                        }
-                    });
-					L.control.browserPrint({
-                        title: 'Just print me!',
-                        documentTitle: 'Map printed using leaflet.browser.print plugin',
-                        printLayer: L.tileLayer('https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A3857@png/{z}/{x}/{y}.png', {
-                                        tms: true,
-                                        maxZoom: 21,
-                                        attribution: atrib_ign
-                                    }),
-                        closePopupsOnPrint: false,
-                        printModes: [
-                            L.control.browserPrint.mode.landscape(),
-                            "Portrait",
-                            L.control.browserPrint.mode.auto("Automatico", "B4"),
-                            L.control.browserPrint.mode.custom("Séléctionnez la zone", "B5")
-                        ],
-                        manualMode: false
-                    }).addTo(mapa);
-                    */
-					break;
+               		break;
 				case 'Draw':
-				    var drawnItems = L.featureGroup().addTo(mapa);
+
+				    var orgReadbleDistance = L.GeometryUtil.readableArea;
+					
+					L.GeometryUtil.readableArea = function (area, isMetric, precision) { // adapts area unit from m2 to ha to km2 based on its size
+						let _area = L.GeometryUtil.formattedNumber(area, 2) + ' m²';
+						if(area >= 10000 && area < 1000000){
+							_area = L.GeometryUtil.formattedNumber(area / 10000, 2) + ' ha';
+						}
+						if(area >= 1000000){
+							_area = L.GeometryUtil.formattedNumber(area / 1000000, 2) + ' km²';
+						}
+						return _area;	
+					};
+
+				    drawnItems = L.featureGroup().addTo(mapa);
 
 					mapa.editableLayers = {
 						marker: [],
@@ -554,24 +544,27 @@ $("body").on("pluginLoad", function(event, plugin){
 						polygon: [],
 						polyline: []
 					};
-
+					
 					mapa.groupLayers = {};
 
-					var drawControl = new L.Control.Draw({
+					mapa.drawControl = new L.Control.Draw({
 						edit: {
 							featureGroup: drawnItems,
 							poly: {
-								allowIntersection: false
+								allowIntersection: true
 							}
 						},
 						draw: {
-							polygon: {
-								allowIntersection: false,
-								showArea: true
-							}
+							polygon: {metric: true},
+							circlemarker: {metric: true},
+					        polyline: {metric: true},
+					        circle:{metric: true},
+					        rectangle: {metric: true}
 						},
 						position: 'topright'
 					});
+
+
 					//Customizing language and text in Leaflet.draw
 					L.drawLocal.draw.toolbar.finish.title = 'Finalizar dibujo';
 					L.drawLocal.draw.toolbar.finish.text = 'Finalizar';
@@ -611,20 +604,24 @@ $("body").on("pluginLoad", function(event, plugin){
 					L.drawLocal.edit.handlers.edit.tooltip.text = 'Arrastrar polígonos o marcadores para editar sus características';
 					L.drawLocal.edit.handlers.edit.tooltip.subtext = 'Click en cancelar para deshacer los cambios';
 					L.drawLocal.edit.handlers.remove.tooltip.text = 'Click sobre la característica a eliminar';
-					mapa.addControl(drawControl);
+					mapa.addControl(mapa.drawControl);
 
+					
 					mapa.on('draw:drawstart', (e) => {
-						currentlyDrawing = true;
+
+					currentlyDrawing = true;
+
 					});
 					
 					mapa.on('draw:editstart', (e) => {
 						currentlyDrawing = true;
+						
 					});
 
 					mapa.on('draw:created', (e) => {
 						const layer = e.layer;
 						const type = e.layerType;
-
+						
 						let name = type + '_';
 						if (mapa.editableLayers[type].length === 0) {
 							name += '1';
@@ -632,7 +629,7 @@ $("body").on("pluginLoad", function(event, plugin){
 							const lastLayerName = mapa.editableLayers[type][mapa.editableLayers[type].length - 1].name;
 							name += parseInt(lastLayerName.split('_')[1]) + 1;
 						}
-
+						
 						layer.name = name;
 						layer.type = type;
 						layer.data = {};
@@ -648,7 +645,16 @@ $("body").on("pluginLoad", function(event, plugin){
 
 						mapa.editableLayers[type].push(layer);
 
-						drawnItems.addLayer(layer);
+						// if (perfilTopografico.isActive) {
+						// 	// check if profile was clicked
+						// 	mapa.capaPerfilTopografico.clearLayers();
+						// 	mapa.capaPerfilTopografico.addLayer(layer);
+						// 	perfilTopografico.process(layer.getGeoJSON());
+                        // } else {
+							drawnItems.addLayer(layer);		
+                        // }
+
+						mapa.methodsEvents['add-layer'].forEach(method => method(mapa.editableLayers));
 						
 						if (layer.type === 'marker') {
 							//Default marker styles
@@ -661,38 +667,54 @@ $("body").on("pluginLoad", function(event, plugin){
 							mapa.addSelectionLayersMenuToLayer(layer);
 						}
 						mapa.addContextMenuToLayer(layer);
+
+						if(geoProcessingManager){
+							geoProcessingManager.updateLayerSelect(layer.name, true);
+						}
 					});
 
 					mapa.on('draw:edited', (e) => {
 						var layers = e.layers;
 						//Each layer recently edited..
-						layers.eachLayer(function (layer) {
-							//mapa.checkLayersInDrawedGeometry(layer, type);
-						});
+						/* layers.eachLayer(function (layer) {
+							mapa.checkLayersInDrawedGeometry(layer, layer.type);
+						}); */
+						mapa.methodsEvents['edit-layer'].forEach(method => method(mapa.editableLayers));
+
 					});
-					
+
 					mapa.on('draw:deleted', function (e) {
 						var layers = e.layers;
 						Object.values(layers._layers).forEach(deletedLayer => {
 							const lyrIdx = mapa.editableLayers[deletedLayer.type].findIndex(lyr => lyr.name = deletedLayer.name);
 							if (lyrIdx >= 0)
 								mapa.editableLayers[deletedLayer.type].splice(lyrIdx, 1);
-
-							//Delete from groups
-							for (const group in mapa.groupLayers) {
-								const lyrInGrpIdx = mapa.groupLayers[group].findIndex(lyr => lyr = deletedLayer.name);
-								if (lyrInGrpIdx >= 0) {
-									mapa.groupLayers[group].splice(lyrInGrpIdx, 1);
-									if (mapa.groupLayers[group].length === 0)
-										delete mapa.groupLayers[group];
-								}
-							}
-						})
+								deleteLayerFromMenu(deletedLayer);
+						});
+						if(geoProcessingManager){
+							let layerName = Object.values(layers._layers)[0].name;
+							geoProcessingManager.updateLayerSelect(layerName, false);
+						}
+						mapa.methodsEvents['delete-layer'].forEach(method => method(mapa.editableLayers));
 					});
+
+					deleteLayerFromMenu = (deletedLayer) => {// Delete layers entries from menu if exists
+						Object.entries(mapa.groupLayers).forEach(([k, v]) => {
+							v.forEach(e => {
+								if(e === deletedLayer.name) {
+									deleteLayerGeometry(k,true)
+								}
+							});
+						});
+					}
 
 					mapa.on('draw:drawstop', (e) => {
 						setTimeout(() => {
 							currentlyDrawing = false;
+							// if(perfilTopografico.isActive){
+							// 	// reset profile status
+							// 	perfilTopografico.isActive = false;
+							// }
 						}, 300);
 					});
 
@@ -700,12 +722,55 @@ $("body").on("pluginLoad", function(event, plugin){
 						currentlyDrawing = false;
 					});
 
+					
+					mapa.on('zoomend', (e) => {
+						let contextPopup = null;
+						const contextMenu = new ContextMenu();
+						mapa.closePopup(contextPopup);
+						$(".context-quehay").slideUp();
+					});
+
+					mapa.on('dragend', (e) => {
+						let contextPopup = null;
+						const contextMenu = new ContextMenu();
+						mapa.closePopup(contextPopup);
+						$(".context-quehay").slideUp();
+					});
+
+
 					mapa.on('contextmenu', (e) => {
+						
+						var capa = "";
+						$.each(mapa._layers, function (ml) {
+							$.each(mapa._layers[ml], function (v) {
+								if (mapa._layers[ml]._url!=undefined) {
+									capa = mapa._layers[ml]._url;
+								}
+								 
+						   	})
+						 })
+						
+
+						var zoom = e.target._zoom;
+						var count = 0;
+						
+						var imagen = ""
+						$.each(e.target._zoomBoundLayers,function(clave,valor){
+							$.each(valor._tiles,function(key,value){
+								if (count==0) {
+									
+									imagen = value.el.currentSrc;
+								}
+								count++;
+							});
+						});
+
+
 						let contextPopup = null;
 						const contextMenu = new ContextMenu();
 
-						const lng = e.latlng.lng.toFixed(5);
-						const lat = e.latlng.lat.toFixed(5);
+						const lng = e.latlng.lng.toFixed(6);
+						const lat = e.latlng.lat.toFixed(6);
 
 						contextMenu.createOption({
 							isDisabled: false,
@@ -715,6 +780,58 @@ $("body").on("pluginLoad", function(event, plugin){
 								copytoClipboard(`${lat}, ${lng}`);
 							}
 						});
+
+						contextMenu.createOption({
+							isDisabled: false,
+							text: 'Mas información',
+							onclick: (option) => {
+								mapa.closePopup(contextPopup);	
+									 $("#search_bar").val(lat+","+lng).focus();					              
+							}
+						});
+
+						contextMenu.createOption({
+						isDisabled: false,
+						text: "Abrir en...",
+						onclick: (option) => {
+							mapa.closePopup(contextPopup);
+							let _url = `geo:${lat},${lng}`;
+							window.open(_url);
+							}
+						});
+
+						/* contextMenu.createOption({
+							isDisabled: false,
+							text: "Share",
+							onclick: (option) => {
+								mapa.closePopup(contextPopup);
+								let _url = `${window.location.protocol}//${window.location.host}${window.location.pathname}${window.location.search}`;
+								window.open(_url);
+								}
+							}); */
+						
+						/* contextMenu.createOption({
+							isDisabled: false,
+							text: "Save",
+							onclick: () => {
+								mapa.closePopup(contextPopup);
+								let markedId = 0;
+								(!app.markers) ? app.markers = {} : markedId = Object.keys(app.markers).length++;
+								
+								let marker = window.prompt("Set marker name","name...");
+								let _markerName;
+								(marker == null || marker == "")
+								? _markerName = `${lat},${lng}`
+								: _markerName = marker;
+
+								app.markers[markedId] = { 
+									name: _markerName,
+									location: [lat,lng] 
+								};
+								new UserMessage(`${lat},${lng} saved on Markers`, true, "information");
+							},
+							}); */
+						
 						contextMenu.createOption({
 							isDisabled: false,
 							text: 'Agregar marcador',
@@ -729,21 +846,64 @@ $("body").on("pluginLoad", function(event, plugin){
 								mapa.closePopup(contextPopup);
 							}
 						});
+
+							if (gestorMenu.getActiveBasemap() === "esri_imagery") {
+								contextMenu.createOption({
+									isDisabled: false,
+									text: 'Datos de imagen satelital',
+									onclick: (option) => {
+										mapa.closePopup(contextPopup);
+										let imagenDato = '<div><span style="cursor: pointer;font-size: 20px;right: 20px;position: absolute;top: 10px;" onclick="$(\'.context-imagen\').slideUp()"><i class="fa fa-window-close" aria-hidden="true"></i></span>No existen datos a este nivel de zoom</div>',
+										imgData = new Fechaimagen(lat,lng,zoom).area;
+										if (imgData!="") {
+											//let mdTable = `Fecha: ${imgData.date}<br>Resolución espacial: ${imgData.resolution} m<br>Exactitud: ${imgData.accuracy} m<br>Sensor: ${imgData.sensor}<br>Proveedor: ${imgData.provider}<br>Producto: ${imgData.product}`;
+											let mdTable = `<table id="md-table" style="width: 300px;text-align:left;" align="left"><tr><td>Fecha</td><td>${imgData.date}</td></tr><tr><td title="Relación de metros por lado de pixel">Resolución espacial</td><td>${imgData.resolution} m</td></tr><tr><td>Exactitud</td><td>${imgData.accuracy} m</td></tr><tr><td title="Misión aérea o constelación satelital">Sensor</td><td>${imgData.sensor}</td></tr><tr><td>Proveedor</td><td>${imgData.provider}</td></tr><tr><td>Producto</td><td>${imgData.product}</td></tr><tr><td>Zoom mínimo</td><td>${imgData.minZoom}</td></tr><tr><td>Zoom máximo</td><td>${imgData.maxZoom}</td></tr></table>`;
+											imagenDato = `<div><a onclick="copytoClipboard(\'Imagen satelital tomada el ${imgData.date}. Una resolución espacial de ${imgData.resolution} m. La Exactitud es de ${imgData.accuracy} m y el sensor es ${imgData.sensor_texto}. El proveedor es ${imgData.provider_texto} y el producto ${imgData.product} \');" href="#" style="position: absolute;top: 18px;left: 22px;"><i class="far fa-copy" aria-hidden="true"></i> Copiar datos</a><span style="cursor: pointer;font-size: 20px;right: 20px;position: absolute;top: 10px;" onclick="$(\'.context-imagen\').slideUp()"><i class="fa fa-window-close" aria-hidden="true"></i></span><!--<center><b>Metadatos del fondo</b></center><br>-->${mdTable}<hr></div>`;
+										}
+
+										$(".context-imagen").slideDown();
+										$(".context-imagen").html(imagenDato);
+										
+										
+									}
+								});
+							}
+
 						contextPopup = L.popup({ closeButton: false, className: 'context-popup' })
 						.setLatLng(e.latlng)
 						.setContent(contextMenu.menu);
 						mapa.openPopup(contextPopup);
 					});
 
-					mapa.addSelectionLayersMenuToLayer = (layer) => {
-						const popUpDiv = mapa.createPopUp(layer);
-						layer.bindPopup(popUpDiv);
+					mapa.addMethodToEvent = (method, event) => {
+						mapa.methodsEvents[event].push(method);
+					};
 
-						layer.on('click', (e) => {
-							const layer = e.target;
-							const popUpDiv = mapa.createPopUp(mapa.editableLayers[layer.type].find(lyr => lyr.name === layer.name));
+					mapa.addSelectionLayersMenuToLayer = (layer) => {
+							const popUpDiv = mapa.createPopUp(layer);
 							layer.bindPopup(popUpDiv);
-						});
+	
+							layer.on('click', (e) => {
+								const layer = e.target;
+								const popUpDiv = mapa.createPopUp(mapa.editableLayers[layer.type].find(lyr => lyr.name === layer.name));
+								layer.bindPopup(popUpDiv);
+							});
+					}
+
+					mapa.centerLayer = (layer) => {
+						if (!layer) {
+							return new UserMessage('La capa ya no se encuentra disponible.', true, 'error');;
+						}
+						if (layer.type === 'marker' || layer.type === 'circlemarker') {
+							mapa.fitBounds(L.latLngBounds([layer.getLatLng()]));
+						} 
+						else if (layer.type === "FeatureCollection" || layer.type === "Feature") {
+							let bbox = turf.bbox(layer);
+							mapa.fitBounds([[bbox[1],bbox[0]],[bbox[3],bbox[2]]]);
+						}
+						else {
+							mapa.fitBounds(layer.getBounds());
+						}
 					}
 
 					mapa.addContextMenuToLayer = (layer) => {
@@ -791,7 +951,7 @@ $("body").on("pluginLoad", function(event, plugin){
 							}
 						});
 
-						contextMenu.createOption({
+						/* contextMenu.createOption({
 							isDisabled: true,
 							text: 'Ocultar geometría',
 							onclick: (option) => {
@@ -800,7 +960,7 @@ $("body").on("pluginLoad", function(event, plugin){
 									mapa.hideLayer(layer.name);
 								}
 							}
-						});
+						}); */
 						
 						contextMenu.createOption({
 							isDisabled: false,
@@ -810,6 +970,15 @@ $("body").on("pluginLoad", function(event, plugin){
 								layer.downloadGeoJSON();
 							}
 						});
+
+						contextMenu.createOption({
+							isDisabled: false,
+							text: 'Medir',
+							onclick: (option) => {
+								mapa.closePopup(contextPopup);
+								mapa.measurementsWrapper(layer);
+							}
+						});
 						
 						contextMenu.createOption({
 							isDisabled: false,
@@ -817,6 +986,9 @@ $("body").on("pluginLoad", function(event, plugin){
 							onclick: (option) => {
 								mapa.closePopup(contextPopup);
 								mapa.deleteLayer(layer.name);
+								if(geoProcessingManager){
+									geoProcessingManager.updateLayerSelect(layer.name, false);
+								}
 							}
 						});
 
@@ -837,27 +1009,165 @@ $("body").on("pluginLoad", function(event, plugin){
 						});
 					}
 
+					mapa.measurementsWrapper = (layer) => {
+						if (document.getElementById("measurementWrapper")) {
+							document.getElementById("measurementWrapper").remove()
+						}
+
+						const wrapper = document.createElement("div");
+						wrapper.id="measurementWrapper";
+						wrapper.style="top: 150px; left: 600px; position: absolute; background-color: white"
+						wrapper.innerHTML="Medidas"
+						
+						let btncloseWrapper = document.createElement("a");
+						btncloseWrapper.id = "btnclose-wrapper";
+						btncloseWrapper.href = "javascript:void(0)";
+						btncloseWrapper.style = "float:right; color:#676767; overflow-y:auto;";
+						btncloseWrapper.innerHTML ='<i class="fa fa-times"></i>';
+						btncloseWrapper.onclick = () => {
+							wrapper.remove();
+						};
+						wrapper.appendChild(btncloseWrapper);
+						
+						const measurement = document.createElement("div");
+						measurement.id="measurementInfo";
+						wrapper.appendChild(measurement);
+
+						document.body.appendChild(wrapper);
+						$("#measurementWrapper").draggable({scroll: false, cancel: '#measurementInfo', containment: "body"}); 
+												
+						mapa.getMeasurementsInfo(layer);
+
+					}
+
+					mapa.getMeasurementsInfo = (layer) => { 
+						//TODO:usar funciones de calculo para extender
+
+						const type = layer.type[0].toUpperCase() + layer.type.slice(1).toLowerCase();
+						mapa.showMeasurements("Tipo",type,"");
+						try {
+							if (layer.type === "polyline") {
+								const longitude = mapa.getLongitude(layer).toFixed(3);
+								const boundingBox= mapa.getBoundingBox(layer);
+								mapa.showMeasurements("Longitud",longitude,"km");
+								mapa.showMeasurements("BoundingBox",boundingBox,"");
+							}
+							if (layer.type === "polygon" ||  layer.type === "rectangle") {
+								const area = mapa.getAreaPolygon(layer).toFixed(3);
+								const centroid = mapa.getCentroidPolygon(layer);
+								const perimeter = mapa.getPerimeter(layer).toFixed(3);
+								const boundingBox= mapa.getBoundingBox(layer);
+								mapa.showMeasurements("Área",area,"km²");
+								mapa.showMeasurements("Centroide",centroid,"");
+								mapa.showMeasurements("Perímetro",perimeter,"km");
+								mapa.showMeasurements("BoundingBox",boundingBox,"");
+							}
+							if (layer.type === "circle") {
+								const radius = (layer.getRadius()/1000).toFixed(3);
+								const centroid = mapa.getCentroidCircle(layer);
+								const cricumference = (mapa.getCricumference(layer)/1000).toFixed(3);
+								const area = (mapa.getAreaCircle(layer)/1000000).toFixed(3);
+								const boundingBox= mapa.getBoundingBox(layer);
+								mapa.showMeasurements("Área",area,"km²");
+								mapa.showMeasurements("Centroide",centroid,"");
+								mapa.showMeasurements("Circunferencia",cricumference,"km");
+								mapa.showMeasurements("Radio",radius,"km");
+								mapa.showMeasurements("BoundingBox",boundingBox,"");
+							}
+							if (layer.type === "marker" || layer.type === "circlemarker") {
+								const centroid = mapa.getCentroidCircle(layer);
+								mapa.showMeasurements("Centroide",centroid,"");
+							}
+
+						} catch (error) {
+							console.error(error);
+						}
+					}
+
+					mapa.showMeasurements = (name,measurement,unit) => {
+						const wrapper = document.getElementById("measurementInfo"),
+							newDiv = document.createElement("div"),
+							resultado = `${name}: ${measurement} ${unit}`;
+						newDiv.innerHTML = resultado;
+						wrapper.appendChild(newDiv);
+					}
+					
+					mapa.getLongitude = (layer) => {
+						let geojson = layer.getGeoJSON(),
+							longitude = turf.length(geojson);
+						return longitude;
+					}
+					
+					mapa.getPerimeter = (layer) => {
+						let geojson = layer.getGeoJSON(),
+						perimeter = turf.length(geojson);
+						return perimeter;
+					}
+					
+					mapa.getAreaPolygon = (layer) => {
+						let geojson = layer.getGeoJSON(),
+						area = turf.area(geojson) / 1000000;
+						return area;
+					}
+					
+					mapa.getCentroidPolygon = (layer) => {
+						let geojson = layer.getGeoJSON(),
+						centroid0 = turf.centroid(geojson).geometry.coordinates[0],
+						centroid1 = turf.centroid(geojson).geometry.coordinates[1],
+						resultado = `${centroid1.toFixed(6)}, ${centroid0.toFixed(6)}`;
+						return resultado;
+					}
+					
+					mapa.getCentroidCircle = (layer) => {
+						let lat = layer.getLatLng().lat,
+						lng = layer.getLatLng().lng,
+						resultado = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+						return resultado;
+					}
+
+					mapa.getAreaCircle = (layer) => {
+						let radius = layer.getRadius(),
+							area = (Math.PI * (radius*radius));
+						return area;
+					}
+
+					mapa.getCricumference = (layer) => {
+						let radius = layer.getRadius(),
+							cricumference = (Math.PI * radius)
+						return cricumference;
+					}
+
+					mapa.getBoundingBox = (layer) => {
+						let north = layer.getBounds().getNorth().toFixed(8),
+							east = layer.getBounds().getEast().toFixed(8),
+							south = layer.getBounds().getSouth().toFixed(8),
+							west = layer.getBounds().getWest().toFixed(8),
+							boundingBox = document.createElement("div")
+							boundingBox.innerHTML= `<div>&emsp;northEast: ${north}, ${east}<br>&emsp;southWest: ${south}, ${west}</div>`
+						return boundingBox.innerHTML;
+					}
+
 					mapa.createEditStylePopup = (layer, popup) => {
 						const container = document.createElement('div');
 						container.className = 'edit-style-popup-container';
-
+						
 						const closeBtn = document.createElement('a');
 						closeBtn.innerHTML = '<a class="leaflet-popup-close-button" href="#" style="outline: none;">×</a>';
 						closeBtn.onclick = () => {
 							mapa.closePopup(popup);
 						};
 						container.appendChild(closeBtn);
-
+						
 						//-Lines
 						const lineSection = document.createElement('div');
 						lineSection.className = 'section-popup';
-
+						
 						//Title
 						const title = document.createElement('p');
 						title.className = 'section-title non-selectable-text';
 						title.textContent = 'Línea';
 						lineSection.appendChild(title);
-
+						
 						//Opacity
 						const opacityInputDiv1 = document.createElement('div');
 						opacityInputDiv1.className = 'section-item';
@@ -1381,7 +1691,7 @@ $("body").on("pluginLoad", function(event, plugin){
 						};
 
 						const label = document.createElement('label');
-						label.innerHTML = activeLayer;
+						label.innerHTML = gestorMenu.getLayerData(activeLayer).title;
 						label.className = 'active-layer-label';
 						label.setAttribute("for", activeLayer);
 						label.style.marginBottom = '0px';
@@ -1406,7 +1716,7 @@ $("body").on("pluginLoad", function(event, plugin){
 						if (containerIdx >= 0 && !addToList) {
 							activeLayersDiv.removeChild(activeLayersDivChilds[containerIdx]);
 						} else if (containerIdx === -1 && addToList) {
-							mapa.addLayerToPopUp(activeLayersDiv, layer);	
+							mapa.addLayerToPopUp(activeLayersDiv, layer);
 						}
 					
 						const showInfoBtn = document.getElementById('btn-show-info');
@@ -1532,19 +1842,8 @@ $("body").on("pluginLoad", function(event, plugin){
 						
 						layer.closePopup();
 
-						if (Object.keys(layer.data).length === 0) {
-							//Download
-							mapa.checkLayersInDrawedGeometry(layer, selectedLayers);
-						} else {
-							//Load data in table
-							//.. its more complicated if active layers is different to each search.
+						mapa.checkLayersInDrawedGeometry(layer, selectedLayers);
 
-							//Load data in table
-							//let tableD = new Datatable (data, coords);
-							//createTabulator(tableD, activeLayer.name);
-
-							mapa.checkLayersInDrawedGeometry(layer, selectedLayers);
-						}
 					}
 
 					mapa.getEditableLayers = (type) => {
@@ -1553,6 +1852,7 @@ $("body").on("pluginLoad", function(event, plugin){
 
 					mapa.getEditableLayer = (name) => {
 						const type = name.split('_')[0];
+
 						return mapa.editableLayers.hasOwnProperty(type) ? mapa.editableLayers[type].find(lyr => lyr.name === name) : null;
 					}
 
@@ -1561,33 +1861,12 @@ $("body").on("pluginLoad", function(event, plugin){
 							return selectedLayers.find(selectedLayer => selectedLayer === activeLayer.name) ? true : false;
 						});
 
-						let coords = null;
-
-						if (layer.type === 'polygon' || layer.type === 'rectangle') {
-							coords = layer._latlngs[0].map((coords) => [coords.lng, coords.lat]);
-							layer.coords = coords;
-						} else if (layer.type === 'circle') {
-							coords = {
-								lat: layer._latlng.lat,
-								lng: layer._latlng.lng,
-								r: layer._mRadius
-							};
-						} else if (layer.type === 'marker') {
-							coords = {
-								lat: layer._latlng.lat,
-								lng: layer._latlng.lng,
-							};
-						} else if (layer.type === 'polyline') {
-							coords = layer._latlngs.map((coords) => [coords.lng, coords.lat]);
-							layer.coords = coords;
-						}
+						let coords = getGeometryCoords(layer);
 
 						//Clear all old data
 						layer.data = {};
-
 						if (filteredActiveLayers.length > 0) {
 							filteredActiveLayers.forEach(activeLayer => {
-								//console.log(coords, layer.type, activeLayer)
 								getLayerDataByWFS(coords, layer.type, activeLayer)
 								.then(data => {
 
@@ -1601,35 +1880,26 @@ $("body").on("pluginLoad", function(event, plugin){
 									//Load data in table
 									const table = new Datatable(data, coords);
 									createTabulator(table, activeLayer.name);
-
-									//we can style the figure in case it can receive some information
-									/* if (layer.type !== 'marker')
-										layer.setStyle({
-											color: '#33b560'
-										}); */
 								})
-								.catch(error => {
-									console.log(error);
-									/* if (layer.type !== 'marker')
-										layer.setStyle({
-											color: 'red'
-										}); */
+								.catch(err => {
+									console.error(err);
 								});
 							});
 						}
 					}
-					
+
 					mapa.getLayerGeoJSON = (layer) => {
 						const type = layer.split('_')[0];
 						return mapa.editableLayers.hasOwnProperty(type) ? mapa.editableLayers[type].find(lyr => lyr.name === layer).toGeoJSON() : null;
 					}
-					
+
 					mapa.showLayer = (layer) => {
 						const type = layer.split('_')[0];
 						if (mapa.editableLayers.hasOwnProperty(type)) {
 							const lyr = mapa.editableLayers[type].find(lyr => lyr.name === layer);
-							if (lyr)
+							if (lyr) {
 								drawnItems.addLayer(lyr);
+							}
 						}
 					}
 
@@ -1642,23 +1912,26 @@ $("body").on("pluginLoad", function(event, plugin){
 						});
 					}
 
+					
 					mapa.showGroupLayer = (group) => {
-						if (mapa.groupLayers.hasOwnProperty(group))
+						if (mapa.groupLayers.hasOwnProperty(group)){
 							mapa.groupLayers[group].forEach(layer => {
 								mapa.showLayer(layer);
 							});
+						}
 					}
 
 					mapa.hideGroupLayer = (group) => {
 						if (mapa.groupLayers.hasOwnProperty(group))
 						mapa.groupLayers[group].forEach(layer => {
-							mapa.hideLayer(layer);
+								mapa.hideLayer(layer);
 						});
 					}
 
 					mapa.deleteLayer = (layer) => {
 						const type = layer.split('_')[0];
 						const lyrIdx = mapa.editableLayers[type].findIndex(lyr => lyr.name === layer);
+
 						if (lyrIdx >= 0) {
 							drawnItems.removeLayer(mapa.editableLayers[type][lyrIdx]);
 							mapa.editableLayers[type].splice(lyrIdx, 1);
@@ -1667,9 +1940,13 @@ $("body").on("pluginLoad", function(event, plugin){
 						//Delete from groups
 						for (const group in mapa.groupLayers) {
 							const lyrInGrpIdx = mapa.groupLayers[group].findIndex(lyr => lyr === layer);
-							if (lyrInGrpIdx >= 0)
+							if (lyrInGrpIdx >= 0) {
 								mapa.groupLayers[group].splice(lyrInGrpIdx, 1);
+							}
 						}
+
+						mapa.methodsEvents['delete-layer'].forEach(method => method(mapa.editableLayers));
+						controlSeccionGeom();
 					}
 
 					mapa.removeGroup = (group, deleteLayers) => {
@@ -1685,9 +1962,17 @@ $("body").on("pluginLoad", function(event, plugin){
 					}
 
 					mapa.addLayerToGroup = (layer, group) => {
-						if (mapa.groupLayers.hasOwnProperty(group) && !mapa.groupLayers[group].find(layerName => layerName === layer)) {
-							mapa.groupLayers[group].push(layer);
-						}
+						let feature = null ; 
+						feature = ( typeof layer === "object" ) ? feature = layer.name : feature = layer;
+						if ( mapa.groupLayers.hasOwnProperty(group) ) {
+							if ( mapa.groupLayers[group].find(layerName => layerName === feature) ) {
+								return; // feature already exist in group
+							}
+							mapa.groupLayers[group].push(feature);
+							return;
+						};
+						mapa.groupLayers[group] = [];
+						mapa.groupLayers[group].push(feature);
 					}
 
 					mapa.removeLayerFromGroup = (layer, group) => {
@@ -1697,15 +1982,18 @@ $("body").on("pluginLoad", function(event, plugin){
 								mapa.groupLayers[group].splice(layerIdx, 1);
 						}
 					}
-
+					
 					mapa.downloadLayerGeoJSON = (layer) => {
-						const geoJSON = layer.toGeoJSON();
+						const geoJSON = {
+							type: "FeatureCollection",
+							features: [layer.toGeoJSON()]
+						};
 						const styleOptions = { ...layer.options };
-						geoJSON.properties.styles = { ...styleOptions };
-						geoJSON.properties.type = layer.type;
+						geoJSON.features[0].properties.styles = { ...styleOptions };
+						geoJSON.features[0].properties.type = layer.type;
 						if (layer.type === 'marker') {
-							if (geoJSON.properties.styles.hasOwnProperty('icon')) {
-								delete geoJSON.properties.styles.icon;
+							if (geoJSON.features[0].properties.styles.hasOwnProperty('icon')) {
+								delete geoJSON.features[0].properties.styles.icon;
 							}
 						}
 						const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geoJSON));
@@ -1716,7 +2004,7 @@ $("body").on("pluginLoad", function(event, plugin){
 						downloadANode.click();
 						downloadANode.remove();
 					}
-
+					
 					mapa.downloadMultiLayerGeoJSON = (groupLayer) => {
 						const jsonToDownload = {
 							type: "FeatureCollection",
@@ -1724,11 +2012,13 @@ $("body").on("pluginLoad", function(event, plugin){
 						};
 
 						mapa.groupLayers[groupLayer].forEach(layerName => {
-							const layer = mapa.getEditableLayer(layerName);
+							const layer = mapa.getEditableLayer(layerName, true);
 							const geoJSON = layer.toGeoJSON();
 							const styleOptions = { ...layer.options };
 							geoJSON.properties.styles = styleOptions;
 							geoJSON.properties.type = layer.type;
+							// TODO: include all properties fields to GeoJSON
+							(layer.value) ? geoJSON.properties.value = layer.value : 0;
 							jsonToDownload.features.push(geoJSON);
 						});
 
@@ -1861,13 +2151,14 @@ $("body").on("pluginLoad", function(event, plugin){
 						layer.setIcon(icon);
 					};
 
-					mapa.addGeoJsonLayerToDrawedLayers = (geoJSON, groupName, groupIsCreated) => {
-						if (!groupIsCreated)
+					mapa.addGeoJsonLayerToDrawedLayers = (geoJSON, groupName, groupIsCreated, file) => {
+						if (mapa.groupLayers[groupName] === undefined) {
 							mapa.groupLayers[groupName] = [];
+						}
 
 						if (geoJSON.type === 'FeatureCollection') {
 							geoJSON.features.forEach(feature => {
-								mapa.addGeoJsonLayerToDrawedLayers(feature, groupName, true);
+								mapa.addGeoJsonLayerToDrawedLayers(feature, groupName, true, true);
 							});
 							return;
 						}
@@ -1915,8 +2206,81 @@ $("body").on("pluginLoad", function(event, plugin){
 							break;
 							case 'linestring': {
 								const invertedCoords = geoJSON.geometry.coordinates.map(coords => [coords[1], coords[0]]);
-								layer = L.polyline(invertedCoords, options);
-								type = 'polyline';
+								if (geoJSON.hasOwnProperty('properties') && geoJSON.properties.hasOwnProperty('value')) {
+									let n = geoJSON.properties.value
+									let value = geoJSON.properties.value + ' m'
+									
+									if(!countour_styles) countour_styles = getStyleContour()
+									
+
+									if (n % countour_styles.d_line_m === 0) {
+										let colord = ""
+										if(countour_styles.d_line_color === "multi"){
+											colord = getMulticolorContour(n)
+										}
+										else{colord = countour_styles.d_line_color}
+
+										options = {
+											color: colord,
+											weight: countour_styles.d_weigth,
+											smoothFactor: countour_styles.smoothFactor,
+											'font-weight': 'bold'
+												}
+									}else{
+										let colorc = ""
+										if(countour_styles.line_color === "multi"){
+											colorc = getMulticolorContour(n)
+										} else{ colorc = countour_styles.line_color}
+
+
+										options = { color: colorc,
+													weight: countour_styles.line_weight,
+													smoothFactor: countour_styles.smoothFactor,
+													'font-weight': 'regular'
+												}
+									}
+									//if (n % 100 === 0 ||n % 50 === 0) 
+
+									layer = L.polyline(invertedCoords, options);
+									type = 'polyline';
+									layer.layer = groupName;
+									layer.value = geoJSON.properties.value
+									if (n % 100 === 0 ||n % 50 === 0) {
+										// textPath
+										layer.setText(value, {
+											repeat: false,
+											offset: -3,
+											center: true,
+											attributes: {
+												textLength: 55,
+												fill: 'Maroon',
+												'font-weight': options['font-weight'],
+												'font-family': 'sans-serif',
+												stroke: 'white',
+												'stroke-opacity': '1',
+												'stroke-width': '0.5'
+												/* 'font-size': '24px' */
+											}
+										});
+									}
+									layer.on('mouseover', function (e) {
+										let elevation = geoJSON.properties.value.toString() + " m";
+										let tooltipStyle = {
+											direction: 'right',
+											permanent: false,
+											sticky: true,
+											offset: [10, 0],
+											opacity: 0.75,
+											className: 'map-tooltip'
+										};
+										layer.bindTooltip(`<div><b>${elevation}</b></div>`,
+										 tooltipStyle);
+									});
+								} else {
+									layer = L.polyline(invertedCoords, options);
+									type = 'polyline';
+								}
+								
 							}
 							break;
 							case 'polygon': {
@@ -1940,7 +2304,9 @@ $("body").on("pluginLoad", function(event, plugin){
 										},
 										properties: geoJSON.properties
 									};
-									mapa.addGeoJsonLayerToDrawedLayers(point, groupName, true);
+
+									mapa.addGeoJsonLayerToDrawedLayers(point, groupName, true, true);
+
 								});
 								return;
 							}
@@ -1954,7 +2320,7 @@ $("body").on("pluginLoad", function(event, plugin){
 										},
 										properties: geoJSON.properties
 									};
-									mapa.addGeoJsonLayerToDrawedLayers(lineString, groupName, true);
+									mapa.addGeoJsonLayerToDrawedLayers(lineString, groupName, true, true);
 								});
 								return;
 							}
@@ -1967,13 +2333,14 @@ $("body").on("pluginLoad", function(event, plugin){
 						}
 
 						let name = type + '_';
+						
 						if (mapa.editableLayers[type].length === 0) {
 							name += '1';
 						} else {
 							const lastLayerName = mapa.editableLayers[type][mapa.editableLayers[type].length - 1].name;
 							name += parseInt(lastLayerName.split('_')[1]) + 1;
 						}
-
+						
 						layer.name = name;
 						layer.type = type;
 						layer.data = {};
@@ -1983,13 +2350,13 @@ $("body").on("pluginLoad", function(event, plugin){
 						layer.getGeoJSON = () => {
 							return mapa.getLayerGeoJSON(layer.name);
 						}
-
+						
 						layer.downloadGeoJSON = () => {
-							mapa.downloadLayerGeoJSON(mapa.editableLayers[type].find(lyr => lyr.name === layer.name));
+								mapa.downloadLayerGeoJSON(mapa.editableLayers[type].find(lyr => lyr.name === layer.name));
 						}
 
 						mapa.editableLayers[type].push(layer);
-						
+
 						if (layer.type === 'marker') {
 							//Default marker styles
 							layer.options.borderWidth = DEFAULT_MARKER_STYLES.borderWidth;
@@ -2012,18 +2379,12 @@ $("body").on("pluginLoad", function(event, plugin){
 
 						//Left-click
 						if (layer.type !== 'marker' && layer.type !== 'circlemarker' && layer.type !== 'polyline') {
-							mapa.addSelectionLayersMenuToLayer(layer);
+							mapa.addSelectionLayersMenuToLayer(layer, file);
 						}
 						//Right-click
-						mapa.addContextMenuToLayer(layer);
+						mapa.addContextMenuToLayer(layer, file);
 
 						drawnItems.addLayer(layer);
-
-						/* if (type !== 'marker' && type !== 'circlemarker') {
-							mapa.fitBounds(layer.getBounds());
-						} else {
-							mapa.fitBounds(L.latLngBounds([layer.getLatLng()]));
-						} */
 					}
 
 					gestorMenu.plugins['Draw'].setStatus('visible');
@@ -2066,8 +2427,24 @@ $("body").on("pluginLoad", function(event, plugin){
 				layers: currentBaseMap ? [currentBaseMap] : undefined,
 				zoomControl: false,
 				minZoom: app.hasOwnProperty('mapConfig') ? app.mapConfig.zoom.min : DEFAULT_MIN_ZOOM_LEVEL,
-				maxZoom: app.hasOwnProperty('mapConfig') ? app.mapConfig.zoom.max: DEFAULT_MAX_ZOOM_LEVEL
+				maxZoom: app.hasOwnProperty('mapConfig') ? app.mapConfig.zoom.max: DEFAULT_MAX_ZOOM_LEVEL,
+				/* renderer: L.svg() */
 			});
+			
+
+			//Available events
+			mapa.methodsEvents = {
+				'add-layer': [],
+				'delete-layer': [],
+				'edit-layer': []
+			};
+
+			mapa.resetView = () => {
+				mapa.setView(
+					[app.mapConfig.center.latitude, app.mapConfig.center.longitude], 
+					app.mapConfig.zoom.initial
+					);
+			}
 
 			setValidZoomLevel(selectedBasemap.nombre);
 
@@ -2099,6 +2476,9 @@ $("body").on("pluginLoad", function(event, plugin){
 			// Leaflet-MousePosition plugin https://github.com/ardhi/Leaflet.MousePosition
 			L.control.mousePosition({
 				position: 'bottomright', 
+				separator: ' , ',
+				emptyString: '&nbsp;',
+				numDigits: 10,
 				lngFormatter: function(num) {
 					var direction = (num < 0) ? 'O' : 'E';
 					return deg_to_dms(Math.abs(num)) + direction; 
@@ -2106,11 +2486,10 @@ $("body").on("pluginLoad", function(event, plugin){
 				latFormatter: function(num) {
 					var direction = (num < 0) ? 'S' : 'N';
 					return deg_to_dms(Math.abs(num)) + direction; 
-				},
-				separator: '  ',
-				emptyString: '&nbsp;'
+				}
 			}).addTo(mapa);
 			gestorMenu.plugins['MousePosition'].setStatus('visible');
+			loadDeveloperLogo();
 			break;
 		case 'BingLayer':
 			if(gestorMenu.pluginExists('BingLayer') && gestorMenu.plugins['leaflet'].getStatus() == 'visible' && gestorMenu.plugins['BingLayer'].getStatus() == 'ready' ){	
@@ -2120,6 +2499,30 @@ $("body").on("pluginLoad", function(event, plugin){
 			break;
 	}
 });
+
+function getGeometryCoords(layer) {
+	let coords = null;
+
+	if (layer.type === 'polygon' || layer.type === 'rectangle') {
+		coords = layer._latlngs[0].map((coords) => [coords.lng, coords.lat]);
+		layer.coords = coords;
+	} else if (layer.type === 'circle') {
+		coords = {
+			lat: layer._latlng.lat,
+			lng: layer._latlng.lng,
+			r: layer._mRadius
+		};
+	} else if (layer.type === 'marker') {
+		coords = {
+			lat: layer._latlng.lat,
+			lng: layer._latlng.lng,
+		};
+	} else if (layer.type === 'polyline') {
+		coords = layer._latlngs.map((coords) => [coords.lng, coords.lat]);
+		layer.coords = coords;
+	}
+	return coords;
+}
 
 // -- Plugins
 function onEachFeature(feature, layer) {
@@ -2452,6 +2855,7 @@ function loadWmsTpl (objLayer) {
 
     function createWmtsLayer(objLayer) {
 		// tilematrix, style and format should be set by a method
+		let wmts_maxZoom = app.hasOwnProperty('service') ? app.service.wmts.maxZoom : DEFAULT_WMTS_MAX_ZOOM_LEVEL
 		let _style = "", _tilematrixSet = "EPSG:3857", _format = "image/png";
 		var wmtsSource = new L.TileLayer.WMTS(objLayer.capa.getHostWMS(),
 			{
@@ -2459,7 +2863,8 @@ function loadWmsTpl (objLayer) {
 				style: _style,
 				tilematrixSet: _tilematrixSet,
 				format: _format,
-				attribution: objLayer.nombre
+				attribution: objLayer.nombre,
+				maxZoom: wmts_maxZoom
 			}
 		);
 		overlayMaps[objLayer.nombre] = wmtsSource;
@@ -2562,3 +2967,6 @@ function copytoClipboard(coords){
 	document.body.removeChild(aux);
 	new UserMessage('Las coordenadas se copiaron al portapapeles', true, 'information');
 }
+
+
+
