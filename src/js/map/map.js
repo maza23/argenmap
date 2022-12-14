@@ -42,7 +42,7 @@ const changeMarkerStyles = (layer, borderWidth, borderColor, fillColor) => {
 // Mapa base actual de ArgenMap (Geoserver)
 var unordered = '';
 var ordered = ['','','','','','','','',''];
-var ordenZoomHome = 1; var ordenLocate = 2; var ordenFullScreen = 3; var ordenGraticula = 4; var ordenMeasure = 5; var ordenDraw = 6; var ordenBetterScale = 7; var ordenMinimap = 8; var ordenPrint = 9;
+var ordenZoomHome = 1; var ordenLocate = 2; var ordenFullScreen = 3; var ordenGraticula = 4; var ordenMeasure = 5; var ordenDraw = 6; var ordenBetterScale = 7; var ordenMinimap = 8; var ordenPrint = 9; 
 var visiblesActivar = true;
 $("body").on("pluginLoad", function(event, plugin){
 	unordered = '';
@@ -287,8 +287,222 @@ $("body").on("pluginLoad", function(event, plugin){
 					gestorMenu.plugins['graticula'].setStatus('visible');
 					break;
 				case 'Measure':
+					
+					//break;
+				//case 'busqueda':
+					L.Control.MyControl = L.Control.extend({
+					  submit: function(e) {
+					    L.DomEvent.preventDefault(e);
+					    var owsrootUrl = 'https://geo.gualeguaychu.gov.ar/geoserver/gis/wfs';
+					    	var cql_filter = "registrotgi = "+this.input.value+"";
+							var defaultParameters = {
+							    service : 'WFS',
+							    version : '1.1.0',
+							    request : 'GetFeature',
+							    typeName : 'tgi',
+							    outputFormat : 'application/json',
+							    format_options : 'callback:getJson',
+							    SrsName : 'EPSG:4326',
+							    cql_filter: cql_filter
+							};
+
+							var parameters = L.Util.extend(defaultParameters);
+							var URL = owsrootUrl + L.Util.getParamString(parameters);
+
+							var WFSLayer = null;
+							var ajax = $.ajax({
+							    url : URL,
+							    success : function (response) {
+							        WFSLayer = L.geoJson(response, {
+							            style: function (feature) {
+							                return {
+							                    stroke: true,
+							                    fillColor: 'FFFFFF',
+							                    fillOpacity: 0.5
+							                };
+							            },
+							            onEachFeature: function (feature, layer) {
+							            	console.log(feature);
+							                popupOptions = {maxWidth: 800};
+							                var pp = "<table>"+
+										    "<tr><td><strong>tgi:</strong> "+feature.properties.registrotgi+" </td></tr>"+
+										    "<tr><td><strong>tipo:</strong> "+feature.properties.info_typ+" </td></tr>"+
+										    "<tr><td><strong>numero manzana:</strong> "+feature.properties.numeromanzana+" </td></tr>"+((feature.properties.letramanzana)?										    "<tr><td><strong>letra manzana:</strong> "+feature.properties.letramanzana+" </td></tr>":"")+
+										    "<tr><td><strong>parcela:</strong> "+feature.properties.parcela+" </td></tr>"+((feature.properties.subparcela)?										    "<tr><td><strong>subparcela:</strong> "+feature.properties.subparcela+" </td></tr>":"")+
+										    "<tr><td><strong>cuenta osm:</strong> "+feature.properties.cuentaosm+" </td></tr>"+
+										    "<tr><td><strong>domicilio parcelario:</strong> "+feature.properties.domicilioparcelario+" </td></tr>"+
+										    "<tr><td><strong>baldio:</strong> "+feature.properties.baldio+" </td></tr>"+
+										    "<tr><td><strong>metros frente:</strong> "+feature.properties.metrosfrente+" </td></tr>"+
+										    "<tr><td><strong>superficie terreno:</strong> "+feature.properties.superficieterreno+" </td></tr>"+
+										    "<tr><td><strong>superficie mejoras:</strong> "+feature.properties.superficiemejoras+" </td></tr>"+
+										    "<tr><td><strong>avaluo terreno:</strong> "+feature.properties.avaluoterreno+" </td></tr>"+
+										    "<tr><td><strong>codigo servicio tgi:</strong> "+feature.properties.codigoserviciotgi+" </td></tr>"+
+										    "<tr><td><strong>servicio tgi:</strong> "+feature.properties.serviciotgi+" </td></tr>"+
+										    "<tr><td><strong>zona osm:</strong> "+feature.properties.zonaosm+" </td></tr>"+
+										    "<tr><td><strong>codigo servicio osm:</strong> "+feature.properties.codigoservicioosm+" </td></tr>"+
+										    "<tr><td><strong>tipo servicio osm:</strong> "+feature.properties.tiposervicioosm+" </td></tr>"+
+										    "<tr><td><strong>partida provincial:</strong> "+feature.properties.partidaprovincial+" </td></tr>";
+							                layer.bindPopup(pp, popupOptions);
+							                layer.on("add", function (event) {
+											  event.target.openPopup();
+											});
+							            },
+							        }).addTo(mapa);
+							        WFSLayer.eachLayer(function (layer) {
+									    mapa.fitBounds(layer.getBounds());
+									});
+							    }
+							});
+					  },
+					  submit2: function(e) {
+						console.log("submit2");
+						L.DomEvent.preventDefault(e);
+						var owsrootUrl = 'https://geo.gualeguaychu.gov.ar/geoserver/gis/wfs';
+							var cql_filter = "partida = "+this.input2.value+"";
+							var defaultParameters = {
+								service : 'WFS',
+								version : '1.1.0',
+								request : 'GetFeature',
+								typeName : 'partidas',
+								outputFormat : 'application/json',
+								format_options : 'callback:getJson',
+								SrsName : 'EPSG:4326',
+								cql_filter: cql_filter
+							};
+
+							var parameters = L.Util.extend(defaultParameters);
+							var URL = owsrootUrl + L.Util.getParamString(parameters);
+
+							var WFSLayer = null;
+							var ajax = $.ajax({
+								url : URL,
+								success : function (response) {
+									WFSLayer = L.geoJson(response, {
+										style: function (feature) {
+											return {
+												stroke: true,
+												fillColor: 'FFFFFF',
+												fillOpacity: 0.5
+											};
+										},
+										onEachFeature: function (feature, layer) {
+											console.log(feature);
+											popupOptions = {maxWidth: 800};
+											var pp = "<table>"+
+												"<tr><td><strong>clave:</strong> "+feature.properties.clave+" </td></tr>" +
+											  "<tr><td><strong>partida:</strong> "+feature.properties.partida+" </td></tr>" +
+											  "<tr><td><strong>distrito:</strong> "+feature.properties.distrito+" </td></tr>" +
+											  "<tr><td><strong>seccion:</strong> "+feature.properties.seccion+" </td></tr>" +
+											  "<tr><td><strong>grupo:</strong> "+feature.properties.grupo+" </td></tr>" +
+											  "<tr><td><strong>manzana:</strong> "+feature.properties.manzana+" </td></tr>" +
+											  "<tr><td><strong>tipo planta:</strong> "+feature.properties.tipo_planta+" </td></tr>" +
+											  "<tr><td><strong>plano mensura:</strong> "+feature.properties.plano_mensura+" </td></tr>" +
+											  "<tr><td><strong>inscripcion dominial:</strong> "+feature.properties.inscripcion_dominial+" </td></tr>" +
+											  "<tr><td><strong>año inscripcion:</strong> "+feature.properties.inscripcion_anio+" </td></tr>" +
+											  "<tr><td><strong>sup terreno:</strong> "+feature.properties.sup_terreno+" </td></tr>" +
+											  "<tr><td><strong>sup edif total:</strong> "+feature.properties.sup_edif_total+" </td></tr>" +
+											  "<tr><td><strong>coef ajuste:</strong> "+feature.properties.coef_ajust+" </td></tr>" +
+											  "<tr><td><strong>valor basico:</strong> "+feature.properties.valor_basico+" </td></tr>" +
+											  "<tr><td><strong>domicilio:</strong> "+feature.properties.domicilio +" </td></tr>" +
+											  "<tr><td><strong>tgi:</strong> "+feature.properties.tgi +" </td></tr>";
+											layer.bindPopup(pp, popupOptions);
+											layer.on("add", function (event) {
+											  event.target.openPopup();
+											});
+										},
+									}).addTo(mapa);
+									WFSLayer.eachLayer(function (layer) {
+										mapa.fitBounds(layer.getBounds());
+									});
+								}
+							});
+					  },
+					  onAdd: function(map) {
+					  	var container = L.DomUtil.create('div', 'search-container');
+					  	container.setAttribute("style","max-width:140px;");
+					    this.form = L.DomUtil.create('form', 'form', container);
+					    var group = L.DomUtil.create('div', 'form-group', this.form);
+					    this.input = L.DomUtil.create('input', 'form-control input-sm', group);
+					    this.input.type = 'text';
+					    this.input.placeholder = 'Buscar por TGI';
+					    this.results = L.DomUtil.create('div', 'list-group', group);
+					    L.DomEvent.addListener(this.form, 'submit', this.submit, this);
+					    
+						this.form2 = L.DomUtil.create('form', 'form', container);
+						var group2 = L.DomUtil.create('div', 'form-group', this.form2);
+						this.input2 = L.DomUtil.create('input', 'form-control input-sm', group2);
+						this.input2.type = 'text';
+						this.input2.placeholder = 'Buscar por partida';
+						this.results2 = L.DomUtil.create('div', 'list-group', group2);
+						L.DomEvent.addListener(this.form2, 'submit', this.submit2, this);
+						L.DomEvent.disableClickPropagation(container);
+						return container;
+					  },
+
+					  onRemove: function(map) {
+					    // Nothing to do here
+					  }
+					});
+
+
+					L.control.myControl = function(opts) {
+					  return new L.Control.MyControl(opts);
+					}
+
+					L.control.myControl({
+					  position: 'topleft'
+					}).addTo(mapa);
+
+					
+					 
+
+
+					L.Control.Geochu = L.Control.extend({
+						options: {
+							position: 'bottomright',
+						},
+					
+						onAdd: function (map) {
+							var controlDiv = L.DomUtil.create('div', 'leaflet-control-command-geo');
+							var controlUI = L.DomUtil.create('a', 'leaflet-control-command-interior', controlDiv);
+							controlUI.title = 'Geo Gualeguaychú';
+							controlUI.href='https://geo.gualeguaychu.gov.ar/geoserver/gis/wms?Request=GetCapabilities';
+							controlUI.target='_blank';
+							controlUI.innerHTML = '<i class="fa fa-globe"></i> https://geo.gualeguaychu.gov.ar/geoserver/gis/wms';
+							return controlDiv;
+						}
+					});
+					
+					L.control.geochu = function (options) {
+						return new L.Control.Geochu(options);
+					};
+					L.control.geochu({
+						position: 'bottomleft'
+					}).addTo(mapa);
+
+
+					L.Control.GeochuInfo = L.Control.extend({
+						options: {
+							position: 'bottomright',
+						},
+					
+						onAdd: function (map) {
+							var controlDiv = L.DomUtil.create('div', 'leaflet-control-command-geo');
+							var controlUI = L.DomUtil.create('span', 'leaflet-control-command-interior', controlDiv);
+							controlUI.innerHTML = '<i class="fa fa-info"></i> Datos de carácter informativo. No aptos para uso técnico';
+							return controlDiv;
+						}
+					});
+					
+					L.control.geochuinfo = function (options) {
+						return new L.Control.GeochuInfo(options);
+					};
+					L.control.geochuinfo({
+						position: 'bottomleft'
+					}).addTo(mapa);
+
 					// Leaflet-Measure plugin https://github.com/ljagis/leaflet-measure
-					var measureControl = new L.Control.Measure({ position: 'topleft', primaryLengthUnit: 'meters', secondaryLengthUnit: 'kilometers', primaryAreaUnit: 'sqmeters', secondaryAreaUnit: 'hectares' });
+					var measureControl = new L.Control.Measure({ position: 'topright', primaryLengthUnit: 'meters', secondaryLengthUnit: 'kilometers', primaryAreaUnit: 'sqmeters', secondaryAreaUnit: 'hectares' });
 					measureControl.addTo(mapa);
 					gestorMenu.plugins['Measure'].setStatus('visible');
 					break;
@@ -378,7 +592,7 @@ $("body").on("pluginLoad", function(event, plugin){
 					L.drawLocal.draw.handlers.polygon.tooltip.start = 'Click para comenzar a dibujar la forma';
 					L.drawLocal.draw.handlers.polygon.tooltip.cont = 'Click para continuar dibujando la forma';
 					L.drawLocal.draw.handlers.polygon.tooltip.end = 'Click en el primer punto para cerrar la forma';
-					L.drawLocal.draw.handlers.polyline.error = '<strong>Error:</strong> los border de la forma no deben cruzarse';
+					L.drawLocal.draw.handlers.polyline.error = '<strong>Error:</strong>  los border de la forma no deben cruzarse';
 					L.drawLocal.draw.handlers.polyline.tooltip.start = 'Click para comenzar a dibujar la línea';
 					L.drawLocal.draw.handlers.polyline.tooltip.cont = 'Click para continuar dibujando la línea';
 					L.drawLocal.draw.handlers.polyline.tooltip.start = 'Click en el último punto para finalizar la línea';
@@ -1957,7 +2171,7 @@ function showMainMenuTpl() {
     gestorMenu.setMenuDOM(".nav.nav-sidebar");
     gestorMenu.setLoadingDOM(".loading");
     gestorMenu.setPrintCallback(printFinished);
-    gestorMenu.setLazyInitialization(true);
+    gestorMenu.setLazyInitialization(false);
 	gestorMenu.setShowSearcher(app.hasOwnProperty('showSearchBar') ? app.showSearchBar : false);
     gestorMenu.print();
 }

@@ -98,7 +98,7 @@ Menu principal
 }
 
 .navbar-toggle .icon-bar {
-  border: 1px solid #337ab7;
+  border: 1px solid #ffffff;
 }
 .navbar-header > button {
   display: block;
@@ -780,4 +780,11 @@ SideBar
   .leaflet-bottom {
     margin-right: 40px !important;
   }
+}
+
+#screenshot {
+  top: 418px !important;
+}
+#modalgeojson{
+  top: 378px !important;
 }

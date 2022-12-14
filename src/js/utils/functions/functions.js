@@ -440,30 +440,20 @@ function loadTemplateStyleConfig(template, isDefaultTemplate) {
       }
       break;
       case 'argenmap-leaflet-muni-tpl': {
-        $('head').append(`<link rel="shortcut icon" href="https://www.pehuajo.gob.ar/favicon.ico?m=1" type="image/x-icon" />`);
+        $('head').append(`<link rel="shortcut icon" href="https://www.gualeguaychu.gob.ar/favicon.ico?m=1" type="image/x-icon" />`);
 
-        const muni = "Municipalidad de Pehuajó";
-        const munilink = "http://www.pehuajo.gob.ar/";
+        const muni = "Municipalidad de Gualeguaychú";
+        const munilink = "http://mapa.gualeguaychu.gov.ar/";
         document.title = muni;
         //Change logotype
         $('#top-left-logo-link').attr("href", munilink);
         $('#top-left-logo').attr("alt", muni);
         $('#top-left-logo').attr("title", muni);
-        $('#top-right-logo-link').attr("href","#");
-        $('#top-right-logo').attr("src","src/styles/images/referencias_icono.png");
-        $('#top-right-logo').attr("alt","Referencias");
-        $('#top-right-logo').attr("title","Referencias");
-        $('#top-right-logo').on('click', function() {
-            event.preventDefault();
-            //$.fancybox.open( '<div class="message"><h2>Referencias</h2><p><img src="templates/argenmap-leaflet-muni-tpl/img/referencias.png" style="width:50%"></p></div>' );
-            //$.fancybox.getInstance();
-            //$(".fancybox").fancybox({"width":400,"height":300});
-            $.fancybox.open({
-                src : 'src/styles/images/referencias.png',
-                type : 'image',
-                closeBtn: 'true'
-            });
-        });
+        //$('#top-left-logo').attr("src","src/config/styles/images/logo-color.png");
+        $('#top-right-logo-link').attr("href","http://wwww.gualeguaychu.gob.ar/");
+        $('#top-right-logo').attr("src","src/config/styles/images/logo-muni.png");
+        $('#top-right-logo').attr("alt","Logo Municipalidad");
+        $('#top-right-logo').attr("title","Municipalidad de Gualeguaychú");
       }
       break;
       case 'ign-geoportal-basic': {
@@ -558,10 +548,12 @@ function setProperStyleToCtrlBtns() {
             const screenshotCtrlBtn= document.getElementById('screenshot');
             btns.push(screenshotCtrlBtn);
             btns.forEach(btn => {
-                btn.style.width = width + 'px';
-                btn.style.height = width + 'px';
-                btn.style.border = 'none';
-                btn.style.boxShadow = '0 1px 5px rgb(0 0 0 / 65%)';
+                if(btn){
+                    btn.style.width = width + 'px';
+                    btn.style.height = width + 'px';
+                    btn.style.border = 'none';
+                    btn.style.boxShadow = '0 1px 5px rgb(0 0 0 / 65%)';
+                }
             });
         }
     }, 100);

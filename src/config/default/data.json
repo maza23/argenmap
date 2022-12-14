@@ -82,5 +82,5 @@
       "host": "https://wms.ign.gob.ar/geoserver/modelos-digitales-elevaciones"
     }
   ],
-  "template": "ign-geoportal-basic"
+  "template": "argenmap-leaflet-muni-tpl"
 }

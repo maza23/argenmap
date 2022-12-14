@@ -253,7 +253,7 @@ let getGeoserverCounter = 0,
   templateFeatureInfoFieldException = [],
   gestorMenu = new GestorMenu();
 
-$.getJSON("./src/config/data.json", async function (data) {
+$.getJSON("./src/config/data.json?i="+Math.random(), async function (data) {
   $.getJSON("./src/config/preferences.json", async function (preferences) {
       gestorMenu.setLegendImgPath('src/config/styles/images/legends/');
       await loadTemplate({ ...data, ...preferences }, false);
